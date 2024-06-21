@@ -6,9 +6,9 @@ syntax = "proto3";
 //                                                                       
 // Protobuf security protocol buffers                                          
 //                                                                       
-// Any use is limited to the scope described in the ASAM license terms. 
-// This file is distributable in accordance with the ASAM license terms. 
-// See www.asam.net/license.html for further details.                    
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.         
 //
 //////////////////////////////////////////////////////////
 
