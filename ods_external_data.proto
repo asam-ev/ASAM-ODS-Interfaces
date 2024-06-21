@@ -1,0 +1,175 @@
+syntax = "proto3";
+//////////////////////////////////////////////////////////
+// ASAM ODS V6.2.0
+//
+// (c) by ASAM e.V., 2022
+//
+// Protobuf structures for the ODS interface.
+//
+// Any use is limited to the scope described in the ASAM license terms.
+// This file is distributable in accordance with the ASAM license terms.
+// See www.asam.net/license.html for further details.
+//
+//////////////////////////////////////////////////////////
+
+
+/* package ods.external_data - Definition of the ODS EXD-API interface.
+
+  The External Data API (EXD-API) is a programming interface, which allows the ASAM ODS server to access mass data stored in external files of any type as long as an EXD-API implementation for such file type is available.
+*/
+
+import "ods.proto";
+
+package ods.external_data;
+
+/*
+  EXD-API RPC service definition
+*/
+service ExternalDataReader {
+
+  /* 
+    'OpenExternalData' opens the external data and will return a handle for further requests.
+    The external data provider will keep the resource open addressed by the handle until the
+    'Close' request.
+   */
+  rpc Open(Identifier) returns (Handle) {}
+
+  /*
+    'GetStructure' method will allow to retrieve information about the structure of the external data.
+    This method is used by an import processor to create measurements, submatrices and localcolumns
+    accordingly in an ASAM ODS database.
+    The ASAM ODS server will use this information to retrieve data from the external data provider
+    on client request later on.
+   */ 
+  rpc GetStructure(StructureRequest) returns (StructureResult) {}
+
+  /* 
+    'GetValues' reads external data via/like ASAM ODS data-read interface.
+   */
+  rpc GetValues(ValuesRequest) returns (ValuesResult) {}
+
+  /* 
+    Reads external data like ASAM ODS valuematrix-read in submatrix mode.
+    With this method the channel names and/or data can be retrieved.
+    Channels are addressed using pattern matching their names 
+   */
+   rpc GetValuesEx(ValuesExRequest) returns (ValuesExResult) {}
+
+  /* 
+    Close external data to free resources.
+   */
+   rpc Close(Handle) returns (Empty) {}
+}
+
+
+/*
+  Open and Close 
+*/
+message Identifier {
+  string url = 1;         // url to identify external data
+  string parameters = 2;  // additional service parameters to influence service behavior
+}
+
+/*
+  Handle to identify an open file resource.
+*/
+message Handle {
+  string uuid = 1;  // uuid to identify accessed resource
+}
+
+/*
+  Empty message for close call. 
+*/
+message Empty {
+}
+
+/* 
+  Get structure of external data
+*/
+message StructureRequest {
+  Handle handle = 1;                  // handle retrieved by ExternalDataReader::Open; following members can be used to suppress structure information to reduce structure size
+  bool suppress_channels = 2;         // set to true to only return groups
+  bool suppress_attributes = 3;       // set to true to suppress attributes section on all levels
+  repeated string channel_names = 4;  // request info for specific channel(s) the client is interested in; ALL, if empty; can be used to reduce the amount of channels; may contain wildcards(*?)
+}
+
+/*
+  File Structure returned by 'GetStructure'.
+*/
+message StructureResult {
+
+  /*
+    Identifies a channel of a group.
+  */
+  message Channel {
+    int64 id = 1;                         // id must be unique in the Group
+    string name = 2;                      // string that helps to identify the channel
+    ods.DataTypeEnum data_type = 3;       // ods data type of the channel
+    string unit_string = 4;               // string representing the unit of the channel
+    ods.ContextVariables attributes = 5;  // name-value pairs to represent additional attributes of the channel
+  };
+
+  /*
+    Named group of channels of the same length (number_of_values).
+    Remark: If channels differ in length either fill up with invalid flags or create multiple groups.
+  */
+  message Group {
+    int64 id = 1;                         // id must be unique for all groups
+    string name = 2;                      // string that helps to identify the group
+    int64 total_number_of_channels = 3;   // number of channels that belong to the group including channels not matching filter
+    int64 number_of_rows = 4;             // length of all channels that belong to this group.
+    repeated Channel channels = 5;        // channels of the group.
+    ods.ContextVariables attributes = 6;  // name-value pairs to represent additional attributes of the group
+  };
+
+  Identifier identifier = 1;            // contains parameters for reopen
+  string name = 2;                      // name of the external data
+  repeated Group groups = 3;            // list of measurements in external data
+  ods.ContextVariables attributes = 4;  // attributes for external data
+}
+
+/* 
+  Read external data via/like data-read
+*/
+message ValuesRequest {
+  Handle handle = 1;              // handle retrieved by ExternalDataReader::Open
+  int64 group_id = 2;             // group id given in the access structure
+  repeated int64 channel_ids = 3; // channel ids given in the structure
+  int64 start = 4;                // index of first value to return (0-based)
+  int64 limit = 5;                // max number of values; default/0 means none
+}
+
+/*
+  Contains the channel values returned by GetValues.
+*/
+message ValuesResult {
+
+  message ChannelValues {
+    int64 id = 1;                                   // id of the channel
+    ods.DataMatrix.Column.UnknownArray values = 2;  // mass data of the channel
+    ods.LongArray flags = 3;                        // flags to mark values as invalid; if all values are valid, flags can be omitted (valid = 0xF, invalid 0x0)
+  }
+
+  int64 id = 1;                         // id of the group
+  repeated ChannelValues channels = 2;  // list of channel values to be returned
+}
+
+/* 
+  Read external data like valuematrix-read using channel name patterns
+*/
+message ValuesExRequest {
+  Handle handle = 1;                  // handle retrieved by ExternalDataReader::Open
+  int64 group_id = 2;                 // group to access
+  repeated string channel_names = 3;  // name pattern of the channels; may contain wildcards(*?)
+  repeated string attributes = 4;     // attributes to retrieve: 'name'(required), 'values', 'flags'
+  int64 start = 5;                    // index of first value to return (0-based)
+  int64 limit = 6;                    // max number of values; default/0 means all
+}
+
+/*
+  Contains the channel values returned by GetValuesEx.
+*/
+message ValuesExResult {
+  ods.DataMatrix values = 1;       // can contain channel names, values or flags
+  map<int64, string> unit_map = 2; // used to map temporary unit ids used in response to server units via name
+}

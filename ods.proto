@@ -1,0 +1,657 @@
+syntax = "proto3";
+//////////////////////////////////////////////////////////
+// ASAM ODS V6.2.0                                                  
+//                                                                       
+// (c) by ASAM e.V., 2022                                                  
+//                                                                       
+// Protobuf structures for the ODS interface.                                          
+//                                                                       
+// Any use is limited to the scope described in the ASAM license terms. 
+// This file is distributable in accordance with the ASAM license terms. 
+// See www.asam.net/license.html for further details.                    
+//
+//////////////////////////////////////////////////////////
+
+
+/* package ods - Protobuf structures for the ODS interface.
+
+   General note on default values: 
+     In Protobuf, numeric fields that are not set are interpreted as their default value, that is '0'.
+     Therefore, if any numeric field (e.g. 'unit_id') should have the value default/0 in a request,
+     it is generally not neccessary to set it explicitly in client code.
+
+   General note on deserialization:
+     If a wrong message type is sent, it is possible that the deserializer (expecting a different type)
+     still successfully deserializes to, e.g., an empty message.
+     The deserializer does not validate the message type. It just tries to read the compatible fields.
+
+   General editor note: Comments from this file are used to auto-generate Chapter 11.5. Therefore, all
+   following comments do not contain extra line-breaks.
+*/
+package ods;
+
+/* DataTypeEnum according to Ch. 5.3.1, Table2
+   Note: DT_ID (9) and DS_ID (25) are deprecated.
+*/
+enum DataTypeEnum {
+  DT_UNKNOWN = 0;           // Unknown datatype
+  DT_STRING = 1;            // String
+  DT_SHORT = 2;             // Short value (16 bit, signed)
+  DT_FLOAT = 3;             // Float value (32 bit)
+  DT_BOOLEAN = 4;           // Boolean value
+  DT_BYTE = 5;              // Byte value (8 bit, unsigned)
+  DT_LONG = 6;              // Long value (32 bit, signed)
+  DT_DOUBLE = 7;            // Double precision float value (64 bit)
+  DT_LONGLONG = 8;          // LongLong value (64 bit, signed)
+  DT_DATE = 10;             // Date
+  DT_BYTESTR = 11;          // Bytestream
+  DT_BLOB = 12;             // Blob
+  DT_COMPLEX = 13;          // Complex value (32 bit each part)
+  DT_DCOMPLEX = 14;         // Complex value (64 bit each part)
+  DS_STRING = 15;           // String sequence
+  DS_SHORT = 16;            // Short sequence
+  DS_FLOAT = 17;            // Float sequence
+  DS_BOOLEAN = 18;          // Boolean sequence
+  DS_BYTE = 19;             // Byte sequence
+  DS_LONG = 20;             // Long sequence
+  DS_DOUBLE = 21;           // Double sequence
+  DS_LONGLONG = 22;         // LongLong sequence
+  DS_COMPLEX = 23;          // Complex sequence
+  DS_DCOMPLEX = 24;         // Double complex sequence
+  DS_DATE = 26;             // Date sequence
+  DS_BYTESTR = 27;          // Bytestream sequence
+  DT_EXTERNALREFERENCE = 28;// External reference
+  DS_EXTERNALREFERENCE = 29;// Sequence of external reference
+  DT_ENUM = 30;             // The enumeration datatype
+  DS_ENUM = 31;             // The enumeration sequence datatype
+}
+
+/* 'AggregateEnum' - Aggregation type for the application attribute value(s)
+
+   For the query (see 'SelectStatement' - 'AttributeItem'), the aggregate allows to specify whether:
+     - the values of all instances will be returned,
+     - only the distinct values will be returned, 
+     - only one aggregated value for all instances will be returned, or
+     - as a special case, the indices of the values are returned instead of the values themselves.
+
+   For the return data (see 'DataMatrix'), this indicates the aggregation type for the returned values.
+
+   Notes:  
+     - Items 1..8 are not applicable to the attributes 'values' and 'flags' of AoLocalColumn.
+     - Item 9 is only applicable to the attribute 'values' of AoLocalColumn.
+*/
+enum AggregateEnum {
+  AG_NONE = 0;        // No aggregate function is used for attribute.
+  AG_COUNT = 1;       // Count
+  AG_DCOUNT = 2;      // Distinct count
+  AG_MIN = 3;         // Min; only for numerical values
+  AG_MAX = 4;         // Max; only for numerical values
+  AG_AVG = 5;         // Average; only for numerical values
+  AG_STDDEV = 6;      // Standard deviation; only for numerical values
+  AG_SUM = 7;         // Sum; only for numerical values
+  AG_DISTINCT = 8;    // Distinct
+  AG_VALUES_POINT = 9;// The index of the values
+  AG_INSTANCE_ATTRIBUTE = 10; // Signifies an instance attribute
+}
+
+message StringArray   { repeated string values = 1; }
+message LongArray     { repeated int32  values = 1 [packed=true]; }
+message FloatArray    { repeated float  values = 1 [packed=true]; }
+message BooleanArray  { repeated bool   values = 1 [packed=true]; }
+message ByteArray     {          bytes  values = 1; }
+message DoubleArray   { repeated double values = 1 [packed=true]; }
+message LonglongArray { repeated int64  values = 1 [packed=true]; }
+message BytestrArray  { repeated bytes  values = 1; }
+
+/* 'DataMatrix' - Holds data for one Application Element. Entry inside message 'DataMatrices'.
+
+  The columns of one DataMatrix represent the values of the attributes for the Application Element.
+  That is, if a request specifies e.g. (Id, Name, Description) then there will be one column entry for each, with a corresponding number of rows, where each row holds the value for the attribute of a given instance.
+  To support multi-value attributes and mass data (i.e. values, flags, generation_parameters), a single row-cell can not only contain a scalar value, but also an array of values ('*Array_s_' parts of 'ValuesOneOf') - this would e.g. be the case for the 'values' attribute.
+  Note: In case of bulk data, the entry 'unknown_arrays' of 'ValuesOneOf' will be used, because each entry for e.g. values can have a different data type: The datatype depends on the Local Column instance of this values entry. 
+*/
+message DataMatrix {
+  message Column {
+    /* UnknownArray holds the value(s) for a bulk data attribute entry (values, ...), or the value of an instance attribute.
+    */
+    message UnknownArray  { 
+      DataTypeEnum data_type = 1; // Data Type of LocalColumn, MeasurementQuantity or of the instance attribute; UnknownOneOf must be filled accordingly;
+      int64        unit_id = 2;   // unit in which the measurement values are given; 0 means default
+      oneof UnknownOneOf {
+        StringArray   string_array = 3;  // DT_STRING, DT_DATE
+        LongArray     long_array = 4;    // DT_SHORT, DT_LONG
+        FloatArray    float_array = 5;   // DT_FLOAT, DT_COMPLEX
+        BooleanArray  boolean_array = 6; // DT_BOOLEAN
+        ByteArray     byte_array = 7;    // DT_BYTE
+        DoubleArray   double_array = 8;  // DT_DOUBLE, DT_DCOMPLEX
+        LonglongArray longlong_array = 9;// DT_LONGLONG
+        BytestrArray  bytestr_array = 10;// DT_BYTESTR
+      }
+    };
+    message StringArrays   { repeated StringArray values = 1; };
+    message LongArrays     { repeated LongArray values = 1; };
+    message FloatArrays    { repeated FloatArray values = 1; };
+    message BooleanArrays  { repeated BooleanArray values = 1; };
+    message ByteArrays     { repeated ByteArray values = 1; };
+    message DoubleArrays   { repeated DoubleArray values = 1; };
+    message LonglongArrays { repeated LonglongArray values = 1; };
+    message BytestrArrays  { repeated BytestrArray values = 1; };
+    message UnknownArrays  { repeated UnknownArray values = 1; };
+
+    string        name = 1; // Attribute Name, case sensitive; required
+    string        base_name = 2; // Attribute Base Name; ignored when writing
+    int64         unit_id = 3;
+    AggregateEnum aggregate = 4; // aggregation type; ignored when writing
+    DataTypeEnum  data_type = 5; // must exactly match the datatype (of the attribute) in the application model; ValuesOneOf must be filled accordingly. May differ for aggregate columns. Note: For bulk data, this will be DT_UNKNOWN.
+    repeated bool is_null = 6 [packed=true]; // Defines if attribute value is not set. Might be empty if all attribute values are valid. Otherwise is_null has the same amount of entries as the array inside ValuesOneOf. On Update, this is used to delete instance attributes, if an instance attribute is referenced.
+    oneof ValuesOneOf {
+      StringArray    string_array = 7;    // DT_STRING, DT_DATE, DT_EXTERNALREFERENCE(desc,mime,loc), DT_BLOB(header)
+      LongArray      long_array = 8;      // DT_SHORT, DT_LONG, DT_ENUM
+      FloatArray     float_array = 9;     // DT_FLOAT, DT_COMPLEX(real,imag)
+      BooleanArray   boolean_array = 10;  // DT_BOOLEAN
+      ByteArray      byte_array = 11;     // DT_BYTE
+      DoubleArray    double_array = 12;   // DT_DOUBLE, DT_DCOMPLEX(real,imag)
+      LonglongArray  longlong_array = 13; // DT_LONGLONG
+      BytestrArray   bytestr_array = 14;  // DT_BYTESTR
+      
+      StringArrays   string_arrays = 15;  // DS_STRING, DS_DATE, DS_EXTERNALREFERENCE(desc,mime,loc)
+      LongArrays     long_arrays = 16;    // DS_SHORT, DS_LONG, DS_ENUM
+      FloatArrays    float_arrays = 17;   // DS_FLOAT, DS_COMPLEX(real,imag)
+      BooleanArrays  boolean_arrays = 18; // DS_BOOLEAN
+      ByteArrays     byte_arrays = 19;    // DS_BYTE
+      DoubleArrays   double_arrays = 20;  // DS_DOUBLE, DS_DCOMPLEX(real,imag)
+      LonglongArrays longlong_arrays = 21;// DS_LONGLONG
+      BytestrArrays  bytestr_arrays = 22; // DS_BYTESTR
+      UnknownArrays  unknown_arrays = 23; // DT_UNKNOWN
+    }
+  }
+
+  enum UpdateModeEnum{
+    VU_APPEND = 0; // always append ('values_start' ignored)
+    VU_UPDATE = 1; // update/overwrite (starting at 'values_start')
+    VU_INSERT = 2; // insert new values at 'values_start'
+    VU_REMOVE = 3; // remove values in the range [values_start, values_start + values_remove_length)
+  }
+
+  string name = 1;            // Application Element Name; ignored when writing
+  string base_name = 2;       // Application Element Base Name; ignored when writing
+  int64  aid = 3;             // Application Element Id; required
+
+  repeated Column columns = 4;
+
+  int64 row_start = 5;       // specifies the index of the first result row (0-based); ignored when writing
+  int64 values_start = 6;    // specifies the index of the first value (0-based); when writing, allows to update values starting at an offset (see 'values_update_mode')
+
+  UpdateModeEnum values_update_mode = 7; // when writing, specify the update mode for values
+  int64          values_remove_length = 8; // see 'VU_REMOVE'
+}
+
+/* 'DataMatrices' - Structure to exchange data.
+
+   - Result for a {.../data-read} ('SelectStatement') and a {.../valuematrix-read} ('ValueMatrixRequestStruct') request.
+   - Input for {.../data-create}, {.../data-update} and {.../data-delete} requests.
+   - Result for {.../data-create} request.
+
+   One 'DataMatrix' is returned for each Application Element ('aid') requested. 
+   All columns in all 'matrices' have the same amount of rows (entries in the 'ValuesOneOf' member).
+
+   Note on 'partial_result': 
+     When the server indicates 'partial_result = true', the client does not receive the full result set requested.
+     The server is allowed to cut the result data set as follows:
+     - The full set of requested DataMatrix.columns will be returned. (All columns having the same number of entries.)
+     - All values in DS_* type columns and all requested values for mass data will be returned for those instances that are returned.
+     - The server may cut the number of instances returned in 'DataMatrix.Column.ValuesOneOf', i.e. cut the number of "rows" as in 'SelectStatement.row_limit'.
+     In case even the first response row, e.g. containing a large set of values for a LocalColumn, cannot be transferred, the server is allowed to set 'partial_result = true' and not return any data. I.e. 'DataMatrix.Column.ValuesOneOf.*_array' count being zero.
+     The client can request the rest of the result by sending the 'SelectStatement' again with 'row_start' set to the offset where the server response ended.
+     Alternatively the client can request the data with 'values_limit' set to request less values in case the data columns are huge.
+*/
+message DataMatrices{
+  repeated DataMatrix matrices = 1;
+  bool partial_result = 2;  // Used by the server to indicate that the maximum response size has been exceeded and the server did not return all data.
+}
+
+message Model{
+  message Enumeration{
+    string name = 1;
+    map<string, int32> items = 2;
+  }
+  message Attribute{
+    string       name = 1;
+    string       base_name = 2;
+    DataTypeEnum data_type = 3;
+    int32        length = 4;
+    bool         obligatory = 5;
+    bool         unique = 6;
+    bool         autogenerated = 7;
+    int64        unit_id = 8;
+    string       enumeration = 9;
+    int32        id = 10;
+  }
+  enum RelationTypeEnum{
+    RT_FATHER_CHILD = 0;
+    RT_INFO = 1;
+    RT_INHERITANCE = 2;
+  }
+  enum RelationshipEnum{
+    RS_FATHER = 0;    // Father
+    RS_CHILD = 1;     // Child
+    RS_INFO_TO = 2;   // Directed informational relationship
+    RS_INFO_FROM = 3; // Directed informational relationship
+    RS_INFO_REL = 4;  // Informational relationship (no direction)
+    RS_SUPERTYPE = 5; // Inheritance relationship: super type
+    RS_SUBTYPE = 6;   // Inheritance relationship: subtype
+    RS_ALL_REL = 7;   // Any of the relationships above
+  }
+  message Relation{
+    string name = 1;
+    string base_name = 2;
+    string inverse_name = 3;
+    string inverse_base_name = 4;
+    string entity_name = 5;
+    string entity_base_name = 6;
+    int64  entity_aid = 7;
+    bool   virtual_reference = 8;        // DBCNAME = 'NULL'
+    bool   acl_reference = 9;
+    int32  range_min = 10;               // 0, 1
+    int32  range_max = 11;               // 1, -1(MANY)  
+    int32  inverse_range_min = 12;       // 0, 1
+    int32  inverse_range_max = 13;       // 1, -1(MANY)
+    RelationTypeEnum relation_type = 14;
+    RelationshipEnum relationship =15;
+  }
+  message Entity{
+    string name = 1;
+    string base_name = 2;
+    int64  aid = 3;
+    int32  security_level = 4;
+    map<string, Attribute> attributes = 5;// appl.name of appl.attribute
+    map<string, Relation>  relations = 6; // appl.name of appl.relation
+  }
+
+  map<string, Enumeration> enumerations = 1;// name of enumeration
+  map<string, Entity>      entities = 2;    // appl.name of appl.element
+}
+
+/* 'SelectStatement' - Query Input Structure for the {.../data-read} call.
+
+   The SelectStatement defines which attributes of which Application Element Instances shall be returned by {.../data-read}.
+   The attributes are requested via the 'columns' member.
+   Note: Each column (->'AttributeItem') defines the Application Element (->'aid') as well as the attribute. (There is no separate "from clause".)
+*/
+message SelectStatement{
+
+  /* 'ConditionItem' - One single part of a select constraint.
+     It can be either a condition (x.y == 42) or a conjunction ('and', 'or', 'not') or parenthesis
+  */
+  message ConditionItem{
+    
+    enum ConjuctionEnum {
+      CO_AND = 0;   // 'and' conjunction (Implied if multiple 'Condition' items are used in 'where' without connecting 'conjunction'.)
+      CO_OR = 1;    // 'or' conjunction
+      CO_NOT = 2;   // 'not' conjunction
+      CO_OPEN = 3;  // '(' opening parenthesis for grouping conditions and conjunctions
+      CO_CLOSE = 4; // ')' closing parenthesis for grouping conditions and conjunctions
+    }
+
+    /* 'Condition' - Constraint on one single attribute of one Application Element
+    */
+    message Condition{
+
+      /* 'OperatorEnum' - Definition for available operators.
+      */
+      enum OperatorEnum {
+        OP_EQ = 0;          // equal; '=='
+        OP_NEQ = 1 ;        // not equal; '!=' or '<>'
+        OP_LT = 2;          // less than; '<'
+        OP_GT = 3;          // greater than; '>'
+        OP_LTE = 4;         // less than or equal; '<='
+        OP_GTE = 5;         // greater than or equal; '>='
+        OP_INSET = 6;       // set of values; 'in (3, 42, 123)'; the ValueOneOf may contain multiple values to compare to the attribute
+        OP_NOTINSET = 7;    // not in set of values; see above
+        OP_LIKE = 8;        // wildcard string comparison (case sensitive); '*' = any character, '?' = exactly one character, '\' = escape character
+        OP_CI_EQ = 9;       // case insensitive 'OP_EQ'; see above
+        OP_CI_NEQ = 10;     // case insensitive 'OP_NEQ'; see above
+        OP_CI_LT = 11;      // case insensitive 'OP_LT'; see above
+        OP_CI_GT = 12;      // case insensitive 'OP_GT'; see above
+        OP_CI_LTE = 13;     // case insensitive 'OP_LTE'; see above
+        OP_CI_GTE = 14;     // case insensitive 'OP_GTE'; see above
+        OP_CI_INSET = 15;   // case insensitive 'OP_INSET'; see above
+        OP_CI_NOTINSET = 16;  // case insensitive 'OP_NOTINSET'; see above
+        OP_CI_LIKE = 17;      // case insensitive 'OP_LIKE'; see above
+        OP_IS_NULL = 18;      // tests if attribute value is not set; Note: right hand side ValueOneOf should not be supplied here
+        OP_IS_NOT_NULL = 19;  // tests if attribute value is set; Note: right hand side ValueOneOf should not be supplied here
+        OP_NOTLIKE = 20;      // not 'OP_LIKE'; see above
+        OP_CI_NOTLIKE = 21;   // case insensitive 'OP_NOTLIKE'; see above
+        OP_BETWEEN = 22;      // range of values; 'between 1 and 42'; the ValueOneOf must contain two values for the range
+      }
+      int64        aid = 1;       // Application Element Id of the attribute/non-virtual-relation
+      string       attribute = 2; // name of the application attribute/non-virtual-relation; left hand side of the operator
+      int64        unit_id = 3;   // unit of the condition value; may be default/0 in which case the value is compared without conversion
+      OperatorEnum operator = 4;  // the operator on the attribute; see OperatorEnum; the attribute is on the left hand side
+      
+      /* 'ValueOneOf' - Defines the comparison value of the Condition; right hand side of the operator
+      */
+      oneof ValueOneOf {
+        StringArray     string_array = 5;     // DT_STRING, DT_EXTERNALREFERENCE, DS_STRING, DS_EXTERNALREFERENCE, DS_DATE, DT_DATE
+        LongArray       long_array = 6;       // DT_SHORT, DT_LONG, DT_ENUM, DS_SHORT, DS_LONG, DS_ENUM
+        FloatArray      float_array = 7;      // DT_FLOAT, DT_COMPLEX, DS_COMPLEX, DS_FLOAT
+        BooleanArray    boolean_array = 8;    // DT_BOOLEAN, DS_BOOLEAN
+        ByteArray       byte_array = 9;       // DT_BYTE, DS_BYTE
+        DoubleArray     double_array = 10;    // DT_DOUBLE, DT_DCOMPLEX, DS_DCOMPLEX, DS_DOUBLE
+        LonglongArray   longlong_array = 11;  // DT_LONGLONG, DS_LONGLONG
+        SelectStatement nested_statement = 12;// Nested Query; inner select statement; must yield a meaningful result(-set) to compare to the attribute
+      }
+    }
+
+    /* 'ItemOneOf' - A 'ConditionItem' is either a 'conjunction' or a 'condition'
+    */
+    oneof ItemOneOf{
+      ConjuctionEnum conjunction = 1;
+      Condition      condition = 2;
+    }
+  }
+  message OrderByItem{
+    enum OrderEnum {
+      OD_ASCENDING = 0;  // case sensitive
+      OD_DESCENDING = 1; // case sensitive
+    }
+    int64     aid = 1;       // Application Element Id of the attribute/non-virtual-relation
+    string    attribute = 2; // Name of the application attribute/non-virtual-relation
+    OrderEnum order = 3;     // Ordering for this attribute
+  }
+  message GroupByItem{
+    int64  aid = 1;       // Application Element Id of the attribute/non-virtual-relation
+    string attribute = 2; // Name of the application attribute/non-virtual-relation
+  }
+
+  /* 'AttributeItem' - For each application attribute of an application element whose values shall be considered for the result set, one AttributeItem must be put into SelectStatement:columns.
+
+     Rules for unit conversion: 
+     - If the resulting values of an attribute shall be returned in a different physical unit, that unit must be specified by unit_id, which is the unit's instance ID.
+     - For the default/0 no conversion is applied.
+     - It is an error if the non-zero unit_id does not exist or if the conversion can not be applied (e.g. incompatible physical dimensions, string column, etc.).
+
+     Note on the attribute name: Only a single asterisk "*" is supported to denote "all non-bulk attributes". This is not a wildcard. Instance Attributes are only returned when aggregate is 'AG_INSTANCE_ATTRIBUTE'.
+  */
+  message AttributeItem{
+    int64  aid = 1;       // Application Element Id of the attribute/non-virtual-relation
+    string attribute = 2; // Name of the application attribute/non-virtual-relation OR the asterisk "*" for all attributes excluding bulk attributes
+    AggregateEnum aggregate = 3;
+    int64  unit_id = 4;   // Unit of the values in resulting column in the data matrix; see AttributeItem description
+  }
+
+  /* 'JoinItem' - Describes how the result set data should be joined.
+
+     Notes on join types:
+       - For JT_DEFAULT (inner join) the order of the 'from' and 'to' Application Elements is irrelevant, because it is symmetric.
+       - For JT_OUTER (left outer join) the order of the supplied 'from' and 'to' Application Elements *is* relevant.
+       - The supplied relation should be the relation on the from side.
+       - If join items are missing, the server will automatically build the inner join via the base relation and the shortest route.
+  */
+  message JoinItem{
+    enum JoinTypeEnum {
+      JT_DEFAULT = 0; // inner join
+      JT_OUTER = 1;   // left outer join; switch 'aid_from' and 'aid_to' for an right outer join
+    }
+    int64        aid_from = 1;   // Left side application element of join
+    int64        aid_to = 2;     // Right side application element of join
+    string       relation = 3;   // Name of the application relation; Always use the relation on the from side.
+                                 
+    JoinTypeEnum join_type = 4;
+  }
+
+  repeated AttributeItem columns = 1; // requested attributes; optionally with aggregation and/or unit conversion;
+  repeated ConditionItem where = 2;   // select constraint / "SQL where clause" (CO_AND is implied if conjuctions are omitted between conditions.)
+  repeated JoinItem      joins = 3;   // join conditions for connecting instances of multiple Application Elements / "SQL join"
+  repeated OrderByItem   order_by = 4; // ordering *of the full result set* according to provided attributes / "SQL order by"
+  repeated GroupByItem   group_by = 5; // aggregation specification / "SQL group by"
+  int64 row_limit = 6;                // max. number of instances, starting at row_start (i.e. "page size"): default/0 means all
+  int64 row_start = 7;                // specifies the index of the first result row (0-based)
+  int64 values_limit = 8;             // only for 'values', 'flags'; max number of values; default/0 means all
+  int64 values_start = 9;             // only for 'values', 'flags'; index of first value to return (0-based).
+}
+
+/* ValueMatrix Storage - Request for values, possibly in other units.
+*/
+message ValueMatrixRequestStruct {
+  enum ModeEnum {
+    MO_CALCULATED = 0; // returns implict and raw types calculated
+    MO_STORAGE = 1;
+    MO_EXD_VIRTUAL_DATA = 2; // used to request virtual data from EXD_API
+  }
+  message ColumnItem{
+    string name = 1;    // name Pattern of the measurement quantity / local column. May contain wildcards.
+    int64  unit_id = 2; // unit in which the measurement values shall be returned; 0 means default
+  }
+  
+  ModeEnum mode = 1;
+  int64    aid = 2;               // Application Element Id of type AoMeasurement, AoSubMatrix
+  int64    iid = 3; 
+  repeated string attributes = 4; // Only application attributes derived from 'name'(required), 'values', 'flags', 'generation_parameters'
+  repeated ColumnItem columns = 5;
+  int64    values_limit = 6;      // max number of values; default/0 means all
+  int64    values_start = 7;      // index of first value to return (0-based).
+  repeated int64 exd_group_ids = 8; // used in combination with MO_EXD_VIRTUAL_DATA to identify groups to access
+}
+
+message ContextVariables{
+  message ContextVariableValue{
+    oneof ValueOneOf {
+      StringArray     string_array = 1;
+      LongArray       long_array = 2;
+      FloatArray      float_array = 3;
+      BooleanArray    boolean_array = 4;
+      ByteArray       byte_array = 5;
+      DoubleArray     double_array = 6;
+      LonglongArray   longlong_array = 7;
+    }
+  }
+
+  map<string, ContextVariableValue> variables = 1;
+}
+
+message AsamPath{
+  string path = 1;
+}
+
+message Instance{
+  int64 aid = 1;
+  int64 iid = 2;
+}
+
+message ErrorInfo{
+  enum ErrorCodeEnum {
+    AO_UNKNOWN_ERROR = 0;
+    AO_ACCESS_DENIED = 1;
+    AO_BAD_OPERATION = 2;
+    AO_BAD_PARAMETER = 3;
+    AO_CONNECT_FAILED = 4;
+    AO_CONNECT_REFUSED = 5;
+    AO_CONNECTION_LOST = 6;
+    AO_DUPLICATE_BASE_ATTRIBUTE = 7;
+    AO_DUPLICATE_NAME = 8;
+    AO_DUPLICATE_VALUE = 9;
+    AO_HAS_INSTANCES = 10;
+    AO_HAS_REFERENCES = 11;
+    AO_IMPLEMENTATION_PROBLEM = 12;
+    AO_INCOMPATIBLE_UNITS = 13;
+    AO_INVALID_ASAM_PATH = 14;
+    AO_INVALID_ATTRIBUTE_TYPE = 15;
+    AO_INVALID_BASE_ELEMENT = 16;
+    AO_INVALID_BASETYPE = 17;
+    AO_INVALID_BUILDUP_FUNCTION = 18;
+    AO_INVALID_COLUMN = 19;
+    AO_INVALID_COUNT = 20;
+    AO_INVALID_DATATYPE = 21;
+    AO_INVALID_ELEMENT = 22;
+    AO_INVALID_LENGTH = 23;
+    AO_INVALID_ORDINALNUMBER = 24;
+    AO_INVALID_RELATION = 25;
+    AO_INVALID_RELATION_RANGE = 26;
+    AO_INVALID_RELATION_TYPE = 27;
+    AO_INVALID_RELATIONSHIP = 28;
+    AO_INVALID_SET_TYPE = 29;
+    AO_INVALID_SMATLINK = 30;
+    AO_INVALID_SUBMATRIX = 31;
+    AO_IS_BASE_ATTRIBUTE = 32;
+    AO_IS_BASE_RELATION = 33;
+    AO_IS_MEASUREMENT_MATRIX = 34;
+    AO_MATH_ERROR = 35;
+    AO_MISSING_APPLICATION_ELEMENT = 36;
+    AO_MISSING_ATTRIBUTE = 37;
+    AO_MISSING_RELATION = 38;
+    AO_MISSING_VALUE = 39;
+    AO_NO_MEMORY = 40;
+    AO_NO_PATH_TO_ELEMENT = 41;
+    AO_NOT_FOUND = 42;
+    AO_NOT_IMPLEMENTED = 43;
+    AO_NOT_UNIQUE = 44;
+    AO_OPEN_MODE_NOT_SUPPORTED = 45;
+    AO_SESSION_LIMIT_REACHED = 46;
+    AO_SESSION_NOT_ACTIVE = 47;
+    AO_TRANSACTION_ALREADY_ACTIVE = 48;
+    AO_TRANSACTION_NOT_ACTIVE = 49;
+    AO_HAS_BASE_RELATION = 50;
+    AO_HAS_BASE_ATTRIBUTE = 51;
+    AO_UNKNOWN_UNIT = 52;
+    AO_NO_SCALING_COLUMN = 53;
+    AO_QUERY_TYPE_INVALID = 54;
+    AO_QUERY_INVALID = 55;
+    AO_QUERY_PROCESSING_ERROR = 56;
+    AO_QUERY_TIMEOUT_EXCEEDED = 57;
+    AO_QUERY_INCOMPLETE = 58;
+    AO_QUERY_INVALID_RESULTTYPE = 59;
+    AO_INVALID_VALUEMATRIX_STRUCTURE = 60;
+    AO_FILE_LOCKED = 61;
+    AO_SYSTEM_PROBLEM = 62;
+  }
+
+  ErrorCodeEnum err_code = 1;
+  int32  minor_code = 2;
+  string reason = 3;
+}
+
+message ContextVariablesFilter{
+  string pattern = 1; // The Pattern to which the ContextVariables should match. May contain wildcards, e.g. ODS* would return all ContextVariables with a name starting with ODS.
+}
+
+/* 'FileIdentifier' - Used to identify the content of a AoFile or DT_BLOB.
+
+  - AoFile: aid and iid used to identify the instance the file belongs to
+  - DT_BLOB: aid, iid, and attribute used to identify the data; Header is returned by DataMatrix
+*/
+message FileIdentifier{
+  int64 aid = 1; // Application Element Id
+  int64 iid = 2; // Instance Id
+  string attribute = 3; // Application name of the attribute used to address BLOB and BYTESTR
+  int64 index = 4; // Reserved. (Currently not used.)
+}
+
+/* If a file is imported/released to/from server ownership can be handled using this message
+*/
+message FileControl{
+  enum ActionEnum {
+    AC_TAKE = 0; // take control of the file
+    AC_REMOVE = 1; // file lifetime no longer handled by the server
+  }
+
+  int64 aid = 1; // Application Element Id
+  int64 iid = 2; // Instance Id
+  string url = 3; // location of the file
+  ActionEnum action = 4; // what to do
+}
+
+/* Used to transport the description of the ASAM ODS Basemodel
+*/
+message BaseModel{
+  /* Attribute of an entity of the ASAM ODS base model
+  */
+  message Attribute{
+    string       name = 1; // name of the attribute
+    DataTypeEnum data_type = 2; // datatype of the attribute
+    bool         mandatory = 3; // must be used in application model if entity is used
+    bool         obligatory = 4; // must be set at any instance of this entity
+    bool         autogenerated = 5; // value is automatically generated
+    string       enumeration = 6; // used for DT_ENUM and DS_ENUM attributes to point to enumeration
+  }
+  /* Relation between two entities of the ASAM ODS base model
+  */
+  message Relation{
+    string name = 1; // name of the relation
+    string inverse_name = 2; // the inverse name of this relation
+    repeated string entity_names = 3; // array of Base Entity names that might be used for this relation
+    int32  range_min = 4; // 0, 1
+    int32  range_max = 5; // 1, -1(MANY)  
+    Model.RelationshipEnum relationship = 6; // relationship type of the relation
+    int32  inverse_range_min = 7;       // 0, 1
+    int32  inverse_range_max = 8;       // 1, -1(MANY)
+    Model.RelationTypeEnum relation_type = 9;
+    bool mandatory = 10; // must be used in application model if entity is used
+  }
+  enum DerivationEnum {
+     DV_UNRESTRICTED = 0; // no rules to usage. eg. AoAny
+     DV_SINGLE = 1; // it is only allowed to derive one entity from this one in an application model. e.g. AoUser, AoTest
+     DV_TREE_AT_INSTANCE = 2; // test hierarchy. e.g. AoSubTest
+     DV_TREE_AT_MODEL = 3; // build browsable trees from groups of entities. e.g. AoUnitUnderTest, AoUnitUnderTestPart
+  }
+  /* entity/element of the ASAM ODS base model
+  */
+  message Entity{
+    string name = 1; // name of base entity
+    int64  bid = 2; // base entity id
+    DerivationEnum derivation  = 3; // describe how this entity can be used in application model
+    map<string, Attribute> attributes = 4;// key = name of attribute
+    map<string, Relation>  relations = 5; // key = name of relation
+  }
+
+  string version = 1; // version of the base model e.g. 'asam32'
+  map<string, Model.Enumeration> enumerations = 2;// key = name of enumeration
+  map<string, Entity> entities = 3;    // key = name of entity
+}
+
+message NtoMRelationIdentifier{
+  int64 aid = 1; // Application element Id
+  int64 iid = 2; // Instance Id at aid.
+  string relation_name = 3; // The name of the relation given at aid.
+  int64 related_aid = 4; // Related application element Id.
+}
+
+message NtoMRelatedInstances{
+  NtoMRelationIdentifier identifier = 1;
+  repeated int64 related_iids = 2; // List of related instances at related_aid  
+}
+
+message NtoMWriteRelatedInstances{
+  /* Enumeration of the kind of write access 
+  */
+  enum WriteTypeEnum {
+    WT_ADD = 0;            // Add the given related instances to the relation.
+    WT_REMOVE = 1;         // Remove the related instances from the relation.
+    WT_SET = 2;            // Set the given related instances; all other related instances on aid / iid will be removed.
+  }               
+  WriteTypeEnum change_mode = 1;          // What kind of changes are requested.
+  NtoMRelatedInstances relation_info = 2; // For which instance and relation are the related instances changed.
+}
+
+message CopyRequest {
+  /* Enumeration of the kind of copy access 
+  */
+  enum CopyModeEnum {
+    CM_SHALLOW = 0;       // Copy one the instance.
+    CM_DEEP = 1;          // Copy the instance and all the child instances.
+  }
+  CopyModeEnum mode = 1;  // Which kind of copy are requested.                 
+  int64 aid = 2;          // Application element Id.
+  int64 iid = 3;          // Instance Id at aid.
+  string new_name = 4;    // Name of the copy instance, the name of the copied which was given with aid / iid.
+  string new_version = 5; // Version of the copy instance, the version of the copied which was given with aid / iid. In case there is no version in the application model this value is ignored.
+}
+
+/* Password change request for '{baseURI}/ods/{conI}/password-update'
+*/
+message PasswordUpdate {
+  int64 user_id = 1;  // 0/default means the user currently logged in
+  string old_password = 2; // may be empty if, and only if, the current user is superuser
+  string new_password = 3; // the new password for the specified user
+}
+

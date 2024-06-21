@@ -1,0 +1,105 @@
+syntax = "proto3";
+//////////////////////////////////////////////////////////
+// ASAM ODS V6.0.1                                                   
+//                                                                       
+// (c) by ASAM e.V., 2018                                                  
+//                                                                       
+// Protobuf security protocol buffers                                          
+//                                                                       
+// Any use is limited to the scope described in the ASAM license terms. 
+// This file is distributable in accordance with the ASAM license terms. 
+// See www.asam.net/license.html for further details.                    
+//
+//////////////////////////////////////////////////////////
+
+package ods.security;        
+
+/*
+Enumeration to define which information is requested, access rights or initial rights
+*/
+enum SecurityTypeEnum {
+  ST_ACL = 0;            // Request for rights.
+  ST_TPLI = 1;           // Request for templates or initial rights.
+	ST_EFF = 2;            // Request for effective rights.
+}
+/*
+ Enumeration which kind of data object is requested.
+*/
+enum DataObjectTypeEnum {
+  DOT_APPLICATION_ELEMENT = 0;    // Data object is application element.
+  DOT_APPLICATION_ATTRIBUTE = 1;  // Data object is application attribute.
+  DOT_INSTANCE = 2;               // Data object is instance.
+}
+
+/*
+The request for reading security information.
+*/
+message SecurityReadRequest {
+  /*
+   Information of the data object application element 
+  */
+  message DataObjectApplicationElement {
+    int64 aid = 1;                  // Application element Id, one of ods.Model.entities[].aid.
+  }
+  /*
+   Information of the data object application attributes, many attributes of the same element can be requested.  
+  */
+  message DataObjectApplicationAttribute {
+    int64 aid = 1;                  // Application element Id, one of ods.Model..entities[]aid.
+    repeated string attribute_names = 2;  // List of the request attributes, default empty list which means all attributes, one of ods.Model.entities[].attributes[].name or ods.Model.entities[].relations[].name in case virtual_reference is false and range_max = 1. The names of the attributes or relations must be of the same Entity as aid.
+  }
+  /*
+   Information of the data object instance, in this request many data objects (instances of the same element) can be requested.
+  */
+  message DataObjectInstance {
+    int64 aid = 1;                          // Application element Id, , one of ods.Model..entities[]aid.
+    repeated int64 iids = 2 [packed=true];  // List of the request instance Ids, default empty list which means all instances. The Ids return normally from a data-read in the ods.DataMatrixes.
+  }
+  SecurityTypeEnum security_request_type = 1;  // Define the type of request.
+  DataObjectTypeEnum data_object_type = 2;     // Define the type of the data object.
+  oneof DataObjectOneOf {
+      DataObjectApplicationElement application_element = 3;
+      DataObjectApplicationAttribute application_attribute = 4;
+      DataObjectInstance instance = 5;
+  }
+  int64 user_group_id = 6;                     // The Id of the usergroup for which the request is done, default = 0 which means for all usergroups 
+}
+
+/* 
+An entry of the security response, which can also be used to set the security information.
+*/
+message SecurityEntry {
+      int64 aid = 1;                    // Application element Id.
+      string aa_name = 2;               // Name of the attribute, when not in the response the rights are not attribute specific.
+      int64 iid = 3;                    // Id of the instance, when not given the response is not for an instance.
+      int64 usergroup_id=4;             // Id of the usergroup, must be given always.
+      int32 rights=5;                   // The right for the usergroup, must be given always.
+      int64 ref_aid=6;                  // The reference application element Id, when not given the request was not for initial rights or template.
+}
+
+/*
+Response of the reading security information.
+*/
+message SecurityInfo {
+  SecurityTypeEnum security_type = 1;                 // Defines the security type described in this message.
+  DataObjectTypeEnum data_object_type = 2;            // Defines the type of the data object.
+  repeated SecurityEntry entries = 3;                 // The entries with the rights.
+}
+
+/* 
+Request to write security information.
+*/
+message SecurityWriteRequest {
+  /*
+   Enumeration of the kind of write access.
+  */
+  enum SecurityModifyTypeEnum {
+    SST_ADD = 0;            // Add the given right of the entries to the current rights. (OR)
+    SST_REMOVE = 1;         // Remove the given right of the entries from the current rights. (!AND) 
+    SST_SET = 2;            // Set the given right of the entries to the current rights. (=) 
+  }
+  SecurityTypeEnum security_request_type = 1;         // Define the type of request.
+  DataObjectTypeEnum data_object_type = 2;            // Define the type of the data object.
+  repeated SecurityEntry entries = 3;                 // The entries with the rights.
+  SecurityModifyTypeEnum modify_type = 4;             // What to do.
+}
