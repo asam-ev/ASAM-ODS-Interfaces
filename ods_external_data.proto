@@ -2,7 +2,7 @@ syntax = "proto3";
 //////////////////////////////////////////////////////////
 // ASAM ODS V6.2.0
 //
-// (c) by ASAM e.V., 2022
+// (c) by ASAM e.V., 2024
 //
 // Protobuf structures for the ODS interface.
 //
