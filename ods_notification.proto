@@ -2,7 +2,7 @@ syntax = "proto3";
 //////////////////////////////////////////////////////////
 // ASAM ODS V6.0.1                                                   
 //                                                                       
-// (c) by ASAM e.V., 2018                                                  
+// (c) by ASAM e.V., 2024                                                  
 //                                                                       
 // Protobuf notification protocol buffers                                         
 //                                                                       
