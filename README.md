@@ -1,31 +1,28 @@
 # ASAM ODS External Data Services
 
-This repository contains Protocol Buffer (.proto) files for the ASAM ODS standard. These files are provided as a convenience for developers working with ODS services and are utilized by various pipelines to facilitate communication with ODS services.
+This repository contains [Protocol Buffer (.proto)](https://protobuf.dev/overview/) files from the [ASAM ODS standard](https://www.asam.net/standards/detail/ods/). These files are provided as a convenience for developers working with ODS services and are utilized by various pipelines to facilitate communication with ODS services.
 
 ## Overview
 
-The ASAM ODS (Open Data Services) standard defines a set of services and protocols for the management and exchange of measurement data in the automotive industry. The .proto files in this repository define the Protocol Buffer schemas used to interface with
+The [ASAM ODS (Open Data Services)](https://www.asam.net/standards/detail/ods/wiki/) standard defines a set of services and protocols for the management and exchange of measurement data in the automotive industry. The .proto files in this repository define the Protocol Buffer schemas used to interface with
  these ODS services.
 
 ## Repository Contents
 
 - `.proto` files: Protocol Buffer definitions for ASAM ODS services.
+- `ODSBaseModel_asam??.protobuf.json` file. Representing a protobuf `ods:BaseModel` instance from `ods.proto` [serialized as json](https://protobuf.dev/programming-guides/proto3/#json).
 
 ## Usage
 
-TODO
+To use the `.proto` files follow the [protobuf getting started](https://protobuf.dev/getting-started/).
 
 ## Maintenance and Support
 
-The files in this repository are maintained exclusively by the ASAM ODS development projects as part of further development of the ASAM ODS standard.
+The files in this repository are maintained exclusively by the ASAM ODS development projects as part of further development of the [ASAM ODS standard](https://www.asam.net/standards/detail/ods/).
 
 ### Reporting Issues
 
 If you encounter any issues with the .proto files, please report them by opening an issue in this repository. We will forward the issues to the appropriate ASAM ODS project team for resolution.
-
-### Feature Requests
-
-For any feature requests or enhancements related to the .proto files, please submit them through the issues section of this repository. These requests will also be passed on to the ASAM ODS project team.
 
 ## Disclaimer
 
