@@ -1,4 +1,4 @@
-# ASAM ODS External Data Services
+# ASAM ODS Interfaces
 
 This repository contains [Protocol Buffer (.proto)](https://protobuf.dev/overview/) files from the [ASAM ODS standard](https://www.asam.net/standards/detail/ods/). These files are provided as a convenience for developers working with ODS services and are utilized by various pipelines to facilitate communication with ODS services.
 
