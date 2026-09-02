@@ -1,8 +1,8 @@
 syntax = "proto3";
 //////////////////////////////////////////////////////////
-// ASAM ODS V6.2.0                                                  
+// ASAM ODS V6.2.1                                                  
 //                                                                       
-// (c) by ASAM e.V., 2024                                                  
+// (c) by ASAM e.V., 2025                                                  
 //                                                                       
 // Protobuf structures for the ODS interface.                                          
 //                                                                       
@@ -432,6 +432,14 @@ message ValueMatrixRequestStruct {
   int64    values_limit = 6;      // max number of values; default/0 means all
   int64    values_start = 7;      // index of first value to return (0-based).
   repeated int64 exd_group_ids = 8; // used in combination with MO_EXD_VIRTUAL_DATA to identify groups to access
+}
+
+/* ValueMatrix Storage - Request for appending values to measurement
+   or submatrix.
+*/
+message ValueMatrixAppendStruct {
+  Instance   instance = 1; // Instance of the measurement or submatrix to which new data shall be appended.
+  DataMatrix data     = 2; // Channel data to be appended.
 }
 
 message ContextVariables{
